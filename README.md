@@ -5,7 +5,7 @@
 
   # Yeni Güncelleme 
 
-  **Yeni Zafiyet Tarama Araçimiz MarkOsXzanox_v1.0.py //10 Ekim 2026 *
+  **Yeni 2 adet  Zafiyet Tarama Araçimiz MarkOsXzanox_v1.0.py //10 Ekim 2026 *
 
  **Yeni Zafiyet Aracimiz Zanox ile Birleşmiştir Artik Tam Kapsamli Analiz Yapabilirsiniz // 9 Ekim 2026**
 
