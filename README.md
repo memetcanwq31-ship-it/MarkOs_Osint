@@ -1,8 +1,8 @@
-# MarkOs
+# Merhabalar Arkadaşlar Bu Repoyu Zafiyet Tarama Ve Benzeri Araçlar Atmak için açtim Siber Güvenlik Ve Sanal Dünya Adina Çok iyi Araçlar Gelecektir.
 
-╔═══════════════════════════╗
-   MarkOS Terminal 
-   Android Shelle Hoş Geldiniz
-╚═══════════════════════════╝
+ *Arkadaşlar Eğerli Bir Hata Veya Sorun ile Karşilaşirsaniz Bildirmeniz Yeterlidir Yeni Tools'larimiz Sizler ile Olacaktir  *
+ 
 
-# Markos Terminal Arayüzü Gelişecektir Yeni Araçlarimiz Buraya Gelecektir Güncellemeler Gelecektir Yakinda Termuxdan Ayrilip Özel Android Terminal Olusturup github ile Oradan Devam Edecegiz İyi Günler 
+  # Yeni Güncelleme Hakinda 20 Ekim 2026 
+  **Arkadaşlar Ne Araçlari Geliştiriyim Bu Repoya Daha Ne Gibi Araçlar Ekliyim**
+ 
