@@ -42,7 +42,7 @@ end
 # ═══════════════ SALDIRI İMZA MOTORU ═══════════════
 class SignatureEngine
   SIGNATURES = [
-    ['SQL Injection', /(union\s+select|select\s+.+\s+from|insert\s+into|drop\s+table|'or'1'='1|1\s*=\s*1--|\/\*!union\*\//i)],
+    ['SQL Injection', /(union\s+select|select\s+.+\s+from|insert\s+into|drop\s+table|'or'1'='1|1\s*=\s*1--|\/\*!union\*\//i],
     ['XSS', /(<script|javascript:|onerror\s*=|onload\s*=|<svg|<img[^>]+src|alert\s*\()/i],
     ['LFI/Path Traversal', /(\.\.\/|\.\.\\|\/etc\/passwd|\/windows\/win\.ini|%2e%2e%2f|boot\.ini)/i],
     ['Command Injection', /(;|\||`|\$\()\s*(whoami|id|cat|ls|nc|wget|curl|bash|sh)\b/i],
