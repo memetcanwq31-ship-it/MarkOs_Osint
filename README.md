@@ -5,13 +5,18 @@
 
   # Yeni Güncelleme 
 > Yeni Zafiyet Tarama Araçlarimiz
-> MarkOsXzanox_v1.0.py
-> MarkOsXzanox_v2.0.py
+> MarkOsXzanox_v1.0 Sürüm Paketi
+> MarkOsXzanox_v2.0 Sürüm Paketi
+> run_all Tüm MarkOs repolari Bir Arada Tutan Paket dilimi
 > NEARKOS Sizma Testi Paketi
 > NEARKOS Zafiyet Tarama Paketi
+> 
 
  **Yeni Zafiyet Aracimiz Zanox ile Birleşmiştir Artik Tam Kapsamli Analiz Yapabilirsiniz // 9 Ekim 2026**
 
   
   **Arkadaşlar Ne Araçlari Geliştiriyim Bu Repoya Daha Ne Gibi Araçlar Ekliyim // 8 Ekim 2026**
+
+
+ **Arkadaşlar Oyun hilelerini Açik kaynakli olarak paylasayimi Ama Eğitim Amaçli olarak Tüm Sorumluluk Kullaniciya aittir Sistemde Tespit edip Yakalayacagiz* 
  
