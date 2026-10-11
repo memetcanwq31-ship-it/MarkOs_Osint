@@ -14,7 +14,7 @@
 > MarkOs 🤝 Linux Terminal Paketi
 > Siber_Araç_v1.0 Sürüm Paketib
 > Paganes Antivirus Paketi
-> MarkOsint Açik Kaynakli istihbarat paketi
+> MarkOsint Açik Kaynakli         istihbarat paketi
 > Wifi Analizyers Araci
 
 # Verilen Tarihte Gelecek Tools'lar
