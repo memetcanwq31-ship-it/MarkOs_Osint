@@ -17,6 +17,6 @@
 > MarkOsint Açik Kaynakli istihbarat paketi
 > Wifi Analizyers Araci
 
-# Yeni Gelecek Tools Paketleri 
+# Verilen Tarihte Gelecek Tools'lar
 **20 Ekim* 2026 +7 Arac Gelecektir.*
  
