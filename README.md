@@ -7,6 +7,8 @@
 > Yeni Zafiyet Tarama Araçlarimiz
 > MarkOsXzanox_v1.0.py
 > MarkOsXzanox_v2.0.py
+> NEARKOS Sizma Testi Paketi
+> NEARKOS Zafiyet Tarama Paketi
 
  **Yeni Zafiyet Aracimiz Zanox ile Birleşmiştir Artik Tam Kapsamli Analiz Yapabilirsiniz // 9 Ekim 2026**
 
