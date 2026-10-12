@@ -1,3 +1,9 @@
+<!--
+  MarkOs_Osint - README
+  Polished, bilingual (TR/EN) README with full MIT license included and a separate LICENSE file.
+  Edited by GitHub Copilot on user request.
+-->
+
 # ─── ███╗   ███╗ █████╗ ██████╗ ██╗  ██╗ ██████╗ ███████╗ ───
 # ─── ████╗ ████║██╔══██╗██╔══██╗██║ ██╔╝██╔═══██╗██╔════╝ ───
 # ─── ██╔████╔██║███████║██████╔╝█████╔╝ ██║   ██║███████╗ ───
@@ -7,66 +13,81 @@
 #       M A R K O S   O S I N T   &   B 2 B   F R A M E W O R K
 # ─────────────────────────────────────────────────────────────────
 
-# MarkOs OSINT & B2B Framework
+![MarkOs](https://img.shields.io/badge/MarkOs-OSINT%20%26%20B2B-blue)
 
-Welcome to the official repository of **MarkOs Enterprise Solutions** — a Purple Team security compliance and intelligence ecosystem developed by **memetcanwq31-ship-it**.
+## Kısa Tanıtım
+MarkOs, kurumsal düzeyde Purple Team (Mor Takım) güvenlik uyumluluğu ve istihbarat çözümleri sunan hafif ama güçlü bir çerçevedir. Araç seti Linux ve Termux ortamlarında çalışmak üzere optimize edilmiş, yüksek performanslı asenkron ağ operasyonları ile yerel şifreli depolama (Vault) sağlar.
 
-This suite is optimized for **Linux** and **Termux** environments, combining high-performance asynchronous networking with secure local storage.
+Bu repo: memetcanwq31-ship-it / MarkOs_Osint
 
-## 📡 Core Enterprise Modules (Mevcut Cephanelik)
+## Öne Çıkan Modüller (Mevcut)
+- markos_b2b_scanner.py — B2B Advanced WAF Compliance Engine
+  - Çok katmanlı maskeleme (double encoding, comment splitting vb.) tekniklerine karşı dayanıklılık testleri.
+  - SIEM/SOC uyumlu JSON çıktıları.
 
-Bu ekosistem, kurumsal ağların ve sunucuların güvenlik dayanıklılığını test eden 3 ana çekirdek motordan oluşur:
+- MarkOs_Zanox_Pro.py — Asynchronous OSINT Engine
+  - `asyncio` + `httpx` ile hızlı yasal subdomain keşifleri.
+  - Bulgu kayıtları şifreli `sqlite3` veri tabanına yazılır.
 
-1. **markos_b2b_scanner.py — B2B Advanced WAF Compliance Engine**
-   - Çok katmanlı maskeleme tekniklerine (double encoding, comment splitting vb.) karşı sunucu dayanıklılığını test eder.
-   - Kurumsal SIEM/SOC uyumlu `.json` formatında adli bilişim çıktısı üretir.
+- Waf_bypass.py / Waf_bypass.rb — Multi-language Evasion Lab
+  - Laboratuvar amaçlı imza analizi ve evasion tekniklerini test eden mutasyon motorları.
 
-2. **MarkOs_Zanox_Pro.py — Asynchronous OSINT Engine**
-   - `asyncio` ve `httpx` kullanarak hızlı, yasal subdomain keşifleri yapar.
-   - Bulgular yerel, şifreli `sqlite3` veri tabanında saklanır (Vault).
+Ek paketler: MarkOsXzanox_v1.0, MarkOsXzanox_v2.0, run_all, NEARKOS (sızma & zafiyet), analiz araçları, Paganes Antivirus, Wifi Analyzer vb.
 
-3. **Waf_bypass.py / Waf_bypass.rb — Multi-Language Evasion Lab**
-   - Laboratuvar ortamlarında imza analizi ve evasion testi yapmak için girdileri çeşitli mutasyonlarla dönüştüren motorlardır.
+---
 
-> Diğer araçlar ve paketler: MarkOsXzanox_v1.0, MarkOsXzanox_v2.0, run_all, NEARKOS (Sızma ve Zafiyet Tarama Paketleri), Analiz Araç Paketi, Paganes Antivirus, Wifi Analyzer araçları ve daha fazlası.
-
-## 🚀 Kurulum & Çalıştırma (Installation & Deployment)
-
-Aşağıdaki adımlar MarkOs ekosistemini yerel makinenize veya Termux ortamınıza kurmak ve başlatmak için temel yönlendirmedir:
+## Hızlı Kurulum (Linux / Termux)
+Aşağıdaki adımlar temel bir kurulum içindir. Ortamınıza göre ek bağımlılıklar gerekebilir.
 
 ```bash
-# 1. Depoyu klonlayın
+# 1) Depoyu klonlayın
 git clone https://github.com/memetcanwq31-ship-it/MarkOs_Osint.git
-
-# 2. Proje dizinine girin
 cd MarkOs_Osint
 
-# 3. (Opsiyonel) Sanal ortam oluşturun ve etkinleştirin (Linux)
+# 2) (Önerilen) Python sanal ortamı oluşturun
 python3 -m venv venv
 source venv/bin/activate
+
+# 3) Bağımlılıkları yükleyin
 pip install -r requirements.txt
 
-# 4. Ana framework'ü başlatın
+# 4) Ana framework'ü başlatın
 python3 markos_python_framework.py
 
-# 5. B2B tarayıcıyı çalıştırın
+# 5) B2B tarayıcıyı çalıştırın
 python3 markos_b2b_scanner.py
 ```
 
-Not: Kullanılan Python sürümü 3.8+ olmalıdır. Termux üzerinde kullanım için ek bağımlılıklar gerekebilir — `requirements.txt` dosyasını kontrol edin.
+Notlar:
+- Python 3.8+ tavsiye edilir.
+- Termux üzerinde ek paketler/izinler gerekebilir; Termux dokümantasyonunu kontrol edin.
 
-## 🔒 Security Compliance & B2B Licensing
+---
 
-* **SOC / SIEM Integration:** Tüm tarama motorları, kurumsal SOC/SIEM çözümleriyle entegre edilebilecek standart formatlarda çıktı üretir.
-* **Commercial Support:** B2B lisanslama, özel entegrasyonlar veya kurumsal destek için MarkOs Enterprise ile GitHub veya LinkedIn üzerinden iletişime geçin.
+## Kullanım & Örnekler
+Her modül kendi CLI argümanlarına sahiptir. Yardım için:
 
-## 📄 License & Disclaimer
+```bash
+python3 markos_b2b_scanner.py --help
+python3 MarkOs_Zanox_Pro.py --help
+```
 
-This repository is published under the **MIT License**. The tools and modules in this repo are developed for legal research, authorized penetration testing, red/purple team exercises, and academic purposes only. Misuse for unauthorized access or malicious activity is strictly prohibited.
+---
 
-MIT License (tam metin):
+## Güvenlik & Etik
+Bu araçlar yalnızca yasal araştırma, yetkilendirilmiş penetrasyon testleri ve akademik kullanım içindir. Yetkisiz erişim veya kötüye kullanım yasal sorumluluk doğurur. Herhangi bir kurumsal dağıtımdan önce hukuki onay almanız önerilir.
 
-```text
+---
+
+## Katkıda Bulunma
+Katkılar memnuniyetle karşılanır. Lütfen pull request, issue veya e-posta yoluyla iletişime geçin. Kod katkısı yaparken lütfen CONTRIBUTING.md yönergelerini takip edin (eğer varsa).
+
+---
+
+## Lisans (Tam Metin)
+Aşağıda projenin lisans metni (MIT) tam olarak yer almaktadır. Ayrıca repo kökünde `LICENSE` dosyası bulunmaktadır.
+
+```
 MIT License
 
 Copyright (c) 2026 memetcanwq31-ship-it
@@ -90,11 +111,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Lütfen lisans ayrıntıları için ayrıca `LICENSE` dosyasını da kontrol edin. Herhangi bir kurumsal dağıtım veya ticari kullanım öncesi hukuki onay alınmasını öneririz.
-
 ---
 
 Geliştiren: memetcanwq31-ship-it
 İletişim: https://github.com/memetcanwq31-ship-it
-
 Son güncelleme: 2026-10-12
