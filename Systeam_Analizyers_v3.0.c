@@ -1,25 +1,22 @@
-/* ===================================================================
- * PROJE ADI   : MarkOs Core Threat Hunter & Backdoor Analyzer v2.0
- * GELİŞTİRİCİ : memetcanwq31-ship-it (BTK Akademi Standartları)
- * LİSANS      : MIT Open Source License
- * MİMARÎ      : Saf C Dili (Low-Level Sistem ve Soket Güvenlik Analizi)
- * NOT         : v1.0 üzerine genişletilmiş savunma odaklı sürüm.
- * ===================================================================
- */
+/* name=markos_hunter.c
+   Tamamlanmış ve güçlendirilmiş MarkOs Threat Hunter & Backdoor Analyzer v2.0
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
     #include <windows.h>
 #else
     #include <unistd.h>
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <pwd.h>
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <sys/wait.h>
 #endif
 
 #define GREEN  "\x1b[32m"
@@ -29,7 +26,7 @@
 #define MAGENTA "\x1b[35m"
 #define RESET  "\x1b[0m"
 #define MAX_BUF 4096
-#define LINE_BUF 1024
+#define LINE_BUF 2048
 
 /* Bilinen kötü amaçlı / nadiren meşru olan portlar (araştırma taraması) */
 static const int suspicious_ports[] = {4444, 4445, 5555, 6666, 6667, 7777, 8888, 9999, 1337, 31337, 12345, 54321};
@@ -56,6 +53,7 @@ void module_full_scan(void);
 /* Yardımcılar */
 int  is_suspicious_port(int port);
 void print_seperator(const char *title);
+bool line_contains_port(const char *line, int port);
 
 /* =================================================================== */
 /* ANA PROGRAM                                                         */
@@ -131,7 +129,11 @@ void log_event(const char *severity, const char *msg) {
 
     time_t now = time(NULL);
     char tbuf[64];
-    strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    if (localtime(&now) != NULL)
+        strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    else
+        snprintf(tbuf, sizeof(tbuf), "0000-00-00 00:00:00");
+
     fprintf(fp, "[%s] [%s] %s\n", tbuf, severity, msg);
     fclose(fp);
 }
@@ -145,9 +147,9 @@ void clear_screen(void) {
 }
 
 void press_enter(void) {
-    printf("%sAna menüye dönmek için Enter'a basın...%s", GREEN, RESET);
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
+    printf("%s\nAna menüye dönmek için Enter'a basın...%s", GREEN, RESET);
+    char buf[16];
+    if (fgets(buf, sizeof(buf), stdin) == NULL) { /* ignore */ }
 }
 
 void safe_sleep(int seconds) {
@@ -171,9 +173,10 @@ int read_int(int min, int max) {
         while ((c = getchar()) != '\n' && c != EOF);
         return -1;
     }
+    errno = 0;
     val = strtol(buf, &endptr, 10);
     if (endptr == buf || (*endptr != '\n' && *endptr != '\0')) return -1;
-    if (val < min || val > max) return -1;
+    if ((errno == ERANGE) || val < min || val > max) return -1;
     return (int)val;
 }
 
@@ -190,6 +193,23 @@ int is_suspicious_port(int port) {
     return 0;
 }
 
+/* Satırda belirli portun anlamlı bir eşleşmesi var mı? (ör: :4444, :4444/...) */
+bool line_contains_port(const char *line, int port) {
+    char pattern[32];
+    snprintf(pattern, sizeof(pattern), ":%d", port);
+    const char *p = strstr(line, pattern);
+    while (p) {
+        const char after = *(p + strlen(pattern));
+        /* Eğer sonlandıysa veya ayırıcı ise (space, colon, slash, tab) kabul et */
+        if (after == '\0' || isspace((unsigned char)after) || after == '/' || after == ':' ) return true;
+        /* Eğer sonraki karakter rakamsa bu ör. :44445 gibi yanlış pozitif olabilir; o zaman devam et */
+        if (!isdigit((unsigned char)after)) return true;
+        /* aksi halde sonraki olası konumu ara */
+        p = strstr(p + 1, pattern);
+    }
+    return false;
+}
+
 /* =================================================================== */
 /* MODÜL 1: AĞ BAĞLANTILARI                                            */
 /* =================================================================== */
@@ -199,6 +219,7 @@ void module_network_connections(void) {
 
 #ifdef _WIN32
     log_event("INFO", "Ag baglantilari taramasi (Windows).");
+    /* Windows'ta büyük çıktıyı pipe ile göster */
     system("netstat -ano | findstr ESTABLISHED");
 #else
     log_event("INFO", "Ag baglantilari taramasi (Linux/Termux).");
@@ -256,7 +277,9 @@ void module_system_files(void) {
         if (access(checks[i].path, R_OK) == 0) {
             if (strstr(checks[i].path, "shadow") != NULL || strstr(checks[i].path, "sudoers") != NULL) {
                 printf("%s[!] RİSK: %s (%s) OKUNABİLİR - izin hatası olabilir!%s\n", RED, checks[i].desc, checks[i].path, RESET);
-                log_event("HIGH", "Kritik dosya okunabilir:");
+                char logmsg[256];
+                snprintf(logmsg, sizeof(logmsg), "Kritik dosya okunabilir: %s", checks[i].path);
+                log_event("HIGH", logmsg);
             } else {
                 printf("%s[+] %s (%s): DOĞRULANDI%s\n", GREEN, checks[i].desc, checks[i].path, RESET);
             }
@@ -276,7 +299,7 @@ void module_process_scan(void) {
     printf("%s[*] Çalışan süreçler listeleniyor, bilinen tehlikeli isimler aranıyor...%s\n", YELLOW, RESET);
 
     /* Yaygın olarak kötü amaçlı yazılımların taklit ettiği / kullandığı isimler */
-    const char *danger_names[] = {"nc", "ncat", "netcat", "cryptominer", "xmrig", "kdevtmpfsi", "kinsing"};
+    const char *danger_names[] = {"nc", "ncat", "netcat", "cryptominer", "xmrig", "kdevtmpfsi", "kinsing", "dropbear", "weathersvc"};
     int ndanger = sizeof(danger_names) / sizeof(danger_names[0]);
 
 #ifdef _WIN32
@@ -297,10 +320,11 @@ void module_process_scan(void) {
     while (fgets(line, sizeof(line), fp) != NULL) {
         int i;
         for (i = 0; i < ndanger; i++) {
-            if (strstr(line, danger_names[i]) != NULL) {
+            /* Kısmi isim eşleşmesi (word-boundary olmasa da) */
+            if (strcasestr(line, danger_names[i]) != NULL) {
                 printf("%s[!] ŞÜPHELİ SÜREÇ: %s%s", RED, line, RESET);
                 findings++;
-                log_event("HIGH", "Supheli surec bulundu:");
+                log_event("HIGH", "Supheli surec bulundu");
             }
         }
     }
@@ -353,6 +377,8 @@ void module_persistence_check(void) {
                     fclose(fp);
                 }
             }
+        } else {
+            /* var olmayan dizinler için sessiz kal */
         }
     }
     printf("%s[i] İPUCU: Bilmediğiniz bir cron görevi veya systemd servisi gördüyseniz inceleyin.%s\n", CYAN, RESET);
@@ -365,7 +391,7 @@ void module_persistence_check(void) {
 /* =================================================================== */
 void module_hosts_analysis(void) {
     print_seperator("MODÜL 5: HOSTS DOSYASI ANALİZİ");
-    printf("%s[*] DNS yönlendirme zehirlenmesi (banka/phishing yönlendirme) kontrolü...%s\n", YELLOW, RESET);
+    printf("%s[*] DNS yönlendirme zehirlenmesi (bank/phishing yönlendirme) kontrolü...%s\n", YELLOW, RESET);
 
 #ifdef _WIN32
     const char *hosts_path = "C:\\Windows\\System32\\drivers\\etc\\hosts";
@@ -383,18 +409,21 @@ void module_hosts_analysis(void) {
     char line[LINE_BUF];
     int entries = 0, suspicious = 0;
     /* Phishing'de sık hedeflenen alan adları */
-    const char *targets[] = {"bank", "paypal", "gmail", "facebook", "instagram", "twitter", "garanti", "ziraat", "isbank"};
+    const char *targets[] = {"bank", "paypal", "gmail", "facebook", "instagram", "twitter", "garanti", "ziraat", "isbank", "hsbc", "wellsfargo"};
     int ntargets = sizeof(targets) / sizeof(targets[0]);
 
     while (fgets(line, sizeof(line), fp) != NULL) {
         /* Yorum satırlarını ve boş satırları atla */
-        if (line[0] == '#' || line[0] == '\n' || line[0] == '\0') continue;
+        char *trim = line;
+        while (*trim && isspace((unsigned char)*trim)) trim++;
+        if (*trim == '#' || *trim == '\0' || *trim == '\n') continue;
 
         entries++;
+        /* lowercase kopya */
         char lower[LINE_BUF];
-        int j;
-        for (j = 0; line[j] != '\0' && j < LINE_BUF; j++)
-            lower[j] = (char)((line[j] >= 'A' && line[j] <= 'Z') ? line[j] + 32 : line[j]);
+        size_t j;
+        for (j = 0; j < sizeof(lower)-1 && line[j] != '\0'; j++)
+            lower[j] = (char)tolower((unsigned char)line[j]);
         lower[j] = '\0';
 
         int i;
@@ -402,7 +431,7 @@ void module_hosts_analysis(void) {
             if (strstr(lower, targets[i]) != NULL) {
                 printf("%s[!] ŞÜPHELİ GİRİŞ: %s%s", RED, line, RESET);
                 suspicious++;
-                log_event("HIGH", "hosts dosyasinda supheli giris:");
+                log_event("HIGH", "hosts dosyasinda supheli giris");
             }
         }
     }
@@ -429,7 +458,6 @@ void module_suspicious_port_map(void) {
     printf("%s\n\n", RESET);
 
 #ifdef _WIN32
-    /* netstat çıktısını çek ve satır satır port eşleştir */
     FILE *fp = popen("netstat -ano", "r");
 #else
     FILE *fp = popen("ss -antup 2>/dev/null || netstat -antup 2>/dev/null", "r");
@@ -444,12 +472,10 @@ void module_suspicious_port_map(void) {
     int hits = 0;
     while (fgets(line, sizeof(line), fp) != NULL) {
         for (i = 0; i < num_suspicious; i++) {
-            char pattern[32];
-            snprintf(pattern, sizeof(pattern), ":%d ", suspicious_ports[i]);
-            if (strstr(line, pattern) != NULL) {
-                printf("%s[!] EŞLEŞME BULUNDU (%s portu): %s%s", RED, pattern, line, RESET);
+            if (line_contains_port(line, suspicious_ports[i])) {
+                printf("%s[!] EŞLEŞME BULUNDU (port %d): %s%s", RED, suspicious_ports[i], line, RESET);
                 hits++;
-                log_event("HIGH", "Supheli port aktivitesi:");
+                log_event("HIGH", "Supheli port aktivitesi");
             }
         }
     }
@@ -458,7 +484,7 @@ void module_suspicious_port_map(void) {
     if (hits == 0)
         printf("%s[+] Bilinen backdoor portlarında aktivite bulunamadı.%s\n", GREEN, RESET);
     else
-        printf("%s[!] %d eşleşme bulundu! İlgili PID'leri 'ps -p <PID>' ile inceleyin.%s\n", RED, hits, RESET);
+        printf("%s[!] %d eşleşme bulundu! İlgili PID'leri 'ps -p <PID>' veya 'sudo lsof -i :<port>' ile inceleyin.%s\n", RED, hits, RESET);
 }
 
 /* =================================================================== */
