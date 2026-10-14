@@ -1,0 +1,31 @@
+; =====================================================================
+; PROJE ADI   : MarkOs Bağımsız Dil Çekirdeği (MarkOs Core ASM)
+; GELİŞTİRİCİ : memetcanwq31-ship-it (Beyaz Şapkalı Elit Hacker)
+; MİMARÎ      : x86_64 Saf Assembly (NASM - Low-Level Assembly)
+; STATÜ       : %100 YASAL, ARACISIZ, BAĞIMSIZ SİSTEM PROGRAMLAMA
+; =====================================================================
+
+section .data
+    ; [🛡️] MarkOs Dilinin Ekrana Basacağı Kurumsal ve Meşru Metin
+    markos_mesaj db 'Selam Yüreğir! MarkOs Bağımsız Dil Çekirdeği Aktif.', 0xA
+    markos_uzunluk equ $ - markos_mesaj
+
+section .text
+    global _start
+
+_start:
+    ; 🔬 KATMAN 1: İŞLEMCİ SEVİYESİNDE EKRANA YAZMA (WRITE SYSCALL)
+    ; Herhangi bir C veya Python kütüphanesi olmadan doğrudan Linux kernelına emir veriyoruz babuş!
+    
+    mov rax, 1          ; 1 numaralı sistem çağrısı: sys_write (Ekrana yazma)
+    mov rdi, 1          ; Dosya tanımlayıcı: 1 (Standard Output - Ekran)
+    mov rsi, markos_mesaj   ; Yazdırılacak metnin RAM bellekteki adresi
+    mov rdx, markos_uzunluk ; Metnin bayt cinsinden uzunluğu
+    syscall             ; İşlemciye emri gönder (Kernel Interruption)!
+
+    ; 🔬 KATMAN 2: BELLEK VE SÜREÇ GÜVENLİĞİ (EXIT SYSCALL)
+    ; Program bittiğinde RAM bellekte hiçbir siber zafiyet veya çöp veri bırakmadan sistemi kapatıyoruz babuş!
+    
+    mov rax, 60         ; 60 numaralı sistem çağrısı: sys_exit (Programı sonlandır)
+    mov rdi, 0          ; Çıkış kodu: 0 (Hatasız, pürüzsüz tamamlandı)
+    syscall             ; İşlemciye son emri fırlat ve hafızayı temizle!
