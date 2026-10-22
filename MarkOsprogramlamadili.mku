@@ -1,0 +1,112 @@
+; =============================================================
+; MarkOs MKU - Özgür, Bağımsız ve Özel Programlama Dili
+; Dosya: MarkOsprogramlamadili.mku
+; Yazar: memetcanwq31-ship-it
+; Amaç : Bilgisayarın temel seviyesine yakın, kolay okunur, özgür
+;        ve bağımsız bir dil deneyimi.
+; =============================================================
+
+import MarkOs
+import Systeam
+import Scanner.all as door
+
+; -------------------------------------------------------------
+; Kütüphane ve modül fonksiyonları
+; -------------------------------------------------------------
+func banner(text) {
+    return MarkOs.banner(text)
+}
+
+func scanNetwork(host, port) {
+    return door.scan(host, port)
+}
+
+func selam(name) {
+    return "Merhaba, " + name
+}
+
+start {
+    print("Selam Yüreğir! MarkOs MKU aktif.")
+    print("Özgür ve bağımsız programlama dili çalışıyor.")
+
+    system_status = Systeam.check()
+    user_name = MarkOs.user()
+    version_info = MarkOs.version()
+
+    print("Kullanıcı: " + user_name)
+    print("Versiyon: " + version_info)
+    print("Sistem durumu: " + system_status)
+
+    if system_status == "online" {
+        print("Sistem hazır. Ağ taraması başlatılıyor...")
+        scan_result = scanNetwork("127.0.0.1", 80)
+        print(scan_result.result)
+    } else {
+        print("Sistem şu an çevrimdışı.")
+    }
+
+    message = banner("MarkOs'un özgür dili çalışıyor.")
+    print(message)
+
+    total = 0
+    while total < 3 {
+        print("Döngü: " + str(total))
+        total = total + 1
+    }
+
+    if total == 3 {
+        print("Döngü tamamlandı.")
+    } else {
+        print("Döngü tamamlanmadı.")
+    }
+
+    print(selam(user_name))
+    print("MKU dili başarıyla çalıştı.")
+}
+
+; =============================================================
+; MKU Dilinin Temel Yapısı
+; =============================================================
+; - import MarkOs
+; - import Systeam
+; - import Scanner.all as door
+; - func isim(parametreler) { ... }
+; - start { ... }
+; - if koşul { ... } else { ... }
+; - while koşul { ... }
+; - print( ... )
+; - return ...
+; - + operatörü metin birleştirmede kullanılır
+; - str(...) değeri metne çevirir
+; =============================================================
+
+
+; =============================================================
+; Ek örnekler
+; =============================================================
+
+func topla(a, b) {
+    return a + b
+}
+
+func carp(a, b) {
+    return a * b
+}
+
+func merhaba(isim) {
+    return "Merhaba " + isim
+}
+
+start {
+    print("Toplam: " + str(topla(10, 25)))
+    print("Çarpım: " + str(carp(6, 7)))
+    print(merhaba("Yüreğir"))
+}
+
+; =============================================================
+; Not:
+; Bu dosya, MKU dilinin özgür, bağımsız, okunabilir ve özel
+; tasarımının örnek kullanımını sunar. Dil geliştirildikçe burada
+; yeni modüller, sınıflar, veri yapıları ve derleyici desteği
+; artırılacaktır.
+; =============================================================
