@@ -1,0 +1,677 @@
+from __future__ import annotations
+
+import sys
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
+
+class MKUSyntaxError(Exception):
+    pass
+
+
+@dataclass
+class Token:
+    type: str
+    value: Any
+    pos: int
+
+
+KEYWORDS = {
+    "import", "as", "let", "var", "print", "if", "else",
+    "while", "for", "in", "func", "return", "start",
+    "true", "false", "null", "and", "or", "not"
+}
+
+
+def tokenize(source: str) -> List[Token]:
+    tokens: List[Token] = []
+    i = 0
+    n = len(source)
+
+    while i < n:
+        ch = source[i]
+
+        if ch.isspace():
+            i += 1
+            continue
+
+        if ch == ';':
+            while i < n and source[i] != '\n':
+                i += 1
+            continue
+
+        if ch in ('"', "'"):
+            quote = ch
+            start = i
+            i += 1
+            text = ""
+            while i < n and source[i] != quote:
+                if source[i] == '\\':
+                    i += 1
+                    if i >= n:
+                        raise MKUSyntaxError(f"Escaping error at position {start}")
+                    esc = source[i]
+                    mapping = {
+                        'n': '\n', 't': '\t', 'r': '\r',
+                        '"': '"', "'": "'", '\\': '\\'
+                    }
+                    text += mapping.get(esc, esc)
+                    i += 1
+                    continue
+                text += source[i]
+                i += 1
+            if i >= n:
+                raise MKUSyntaxError(f"Unterminated string near position {start}")
+            i += 1
+            tokens.append(Token("STRING", text, start))
+            continue
+
+        if ch.isdigit() or (ch == '.' and i + 1 < n and source[i + 1].isdigit()):
+            start = i
+            num_str = ""
+            dot_used = False
+            while i < n:
+                c = source[i]
+                if c.isdigit():
+                    num_str += c
+                    i += 1
+                elif c == '.' and not dot_used:
+                    num_str += c
+                    dot_used = True
+                    i += 1
+                else:
+                    break
+            tokens.append(Token("NUMBER", float(num_str) if '.' in num_str else int(num_str), start))
+            continue
+
+        if ch.isalpha() or ch == '_':
+            start = i
+            ident = ""
+            while i < n and (source[i].isalnum() or source[i] == '_'):
+                ident += source[i]
+                i += 1
+            upper = ident.upper()
+            if ident in KEYWORDS:
+                tokens.append(Token(upper, ident, start))
+            else:
+                tokens.append(Token("IDENT", ident, start))
+            continue
+
+        two_char = source[i:i+2]
+        if two_char in ("==", "!=", "<=", ">="):
+            tokens.append(Token("OP", two_char, i))
+            i += 2
+            continue
+
+        if ch in "+-*/%(){}=.,<>![]:":
+            mapping = {
+                "+": "PLUS",
+                "-": "MINUS",
+                "*": "STAR",
+                "/": "SLASH",
+                "%": "PERCENT",
+                "(": "LPAREN",
+                ")": "RPAREN",
+                "{": "LBRACE",
+                "}": "RBRACE",
+                "=": "ASSIGN",
+                ".": "DOT",
+                ",": "COMMA",
+                "<": "LT",
+                ">": "GT",
+                "!": "BANG",
+                "[": "LBRACKET",
+                "]": "RBRACKET",
+                ":": "COLON",
+            }
+            tokens.append(Token(mapping[ch], ch, i))
+            i += 1
+            continue
+
+        raise MKUSyntaxError(f"Unexpected character '{ch}' at position {i}")
+
+    tokens.append(Token("EOF", None, n))
+    return tokens
+
+
+class Environment:
+    def __init__(self, parent: Optional["Environment"] = None):
+        self.parent = parent
+        self.values: Dict[str, Any] = {}
+
+    def get(self, key: str) -> Any:
+        if key in self.values:
+            return self.values[key]
+        if self.parent is not None:
+            return self.parent.get(key)
+        raise NameError(f"Undefined variable: {key}")
+
+    def define(self, key: str, value: Any):
+        self.values[key] = value
+
+    def set(self, key: str, value: Any):
+        if key in self.values:
+            self.values[key] = value
+            return
+        if self.parent is not None:
+            self.parent.set(key, value)
+            return
+        raise NameError(f"Undefined variable: {key}")
+
+
+class MKUInterpreter:
+    def __init__(self):
+        self.tokens: List[Token] = []
+        self.position = 0
+        self.global_env = Environment()
+        self.return_value = None
+        self.return_flag = False
+        self._register_builtins_and_modules()
+
+    def _register_builtins_and_modules(self):
+        self.global_env.define("print", lambda *args: print(*args))
+        self.global_env.define("str", lambda x: str(x))
+        self.global_env.define("int", lambda x: int(x))
+        self.global_env.define("len", lambda x: len(x))
+        self.global_env.define("range", lambda *a: list(range(*a)))
+        self.global_env.define("list", lambda *args: list(args))
+
+        self.global_env.define("MarkOs", {
+            "banner": lambda text: f"[MarkOs] {text}",
+            "user": lambda: "Yüreğir",
+            "version": lambda: "MKU 1.0.0",
+            "build": lambda: "Özgür MKU Runtime",
+        })
+
+        self.global_env.define("Systeam", {
+            "check": lambda: "online",
+            "status": lambda: "active",
+            "kernel": lambda: "Linux",
+        })
+
+        self.global_env.define("Scanner", {
+            "all": {
+                "scan": lambda host, port: {
+                    "host": host,
+                    "port": port,
+                    "status": "alive",
+                    "result": f"Port {port} on {host} is open"
+                }
+            }
+        })
+
+    def peek(self, offset: int = 0) -> Token:
+        idx = self.position + offset
+        if idx >= len(self.tokens):
+            return self.tokens[-1]
+        return self.tokens[idx]
+
+    def advance(self) -> Token:
+        token = self.tokens[self.position]
+        self.position += 1
+        return token
+
+    def match(self, *token_types: str) -> Optional[Token]:
+        for tt in token_types:
+            if self.peek().type == tt:
+                return self.advance()
+        return None
+
+    def match_keyword(self, keyword: str) -> bool:
+        if self.peek().type == keyword.upper() and self.peek().value == keyword:
+            self.advance()
+            return True
+        return False
+
+    def expect(self, token_type: str, message: str) -> Token:
+        tok = self.peek()
+        if tok.type != token_type:
+            raise MKUSyntaxError(f"{message} (Expected {token_type}, got {tok.type})")
+        return self.advance()
+
+    def parse_program(self) -> List[Dict[str, Any]]:
+        statements: List[Dict[str, Any]] = []
+        while self.peek().type != "EOF":
+            statements.append(self.parse_statement())
+        return statements
+
+    def parse_block(self) -> List[Dict[str, Any]]:
+        body: List[Dict[str, Any]] = []
+        self.expect("LBRACE", "Expected '{'")
+        while self.peek().type != "RBRACE":
+            if self.peek().type == "EOF":
+                raise MKUSyntaxError("Unclosed block")
+            body.append(self.parse_statement())
+        self.expect("RBRACE", "Expected '}'")
+        return body
+
+    def parse_statement(self) -> Dict[str, Any]:
+        tok = self.peek()
+
+        if self.match_keyword("import"):
+            module_name = self.expect("IDENT", "Expected module name after import").value
+            while self.match("DOT"):
+                module_name += "." + self.expect("IDENT", "Expected module part after '.'").value
+            alias = None
+            if self.match_keyword("as"):
+                alias = self.expect("IDENT", "Expected alias name").value
+            return {"type": "import", "module": module_name, "alias": alias}
+
+        if self.match_keyword("let") or self.match_keyword("var"):
+            name = self.expect("IDENT", "Expected variable name").value
+            self.expect("ASSIGN", "Expected '=' after variable name")
+            value = self.parse_expression()
+            return {"type": "var_decl", "name": name, "value": value}
+
+        if self.match_keyword("print"):
+            self.expect("LPAREN", "Expected '(' after print")
+            expr = self.parse_expression()
+            self.expect("RPAREN", "Expected ')' after print arguments")
+            return {"type": "print", "value": expr}
+
+        if self.match_keyword("if"):
+            condition = self.parse_expression()
+            then_body = self.parse_block()
+            else_body = None
+            if self.match_keyword("else"):
+                else_body = self.parse_block()
+            return {"type": "if", "condition": condition, "then_body": then_body, "else_body": else_body}
+
+        if self.match_keyword("while"):
+            condition = self.parse_expression()
+            body = self.parse_block()
+            return {"type": "while", "condition": condition, "body": body}
+
+        if self.match_keyword("for"):
+            name = self.expect("IDENT", "Expected loop variable name").value
+            self.expect("IN", "Expected 'in' in for loop")
+            iterable = self.parse_expression()
+            body = self.parse_block()
+            return {"type": "for", "name": name, "iterable": iterable, "body": body}
+
+        if self.match_keyword("func"):
+            name = self.expect("IDENT", "Expected function name").value
+            self.expect("LPAREN", "Expected '(' after function name")
+            params = []
+            if self.peek().type != "RPAREN":
+                while True:
+                    params.append(self.expect("IDENT", "Expected parameter name").value)
+                    if not self.match("COMMA"):
+                        break
+            self.expect("RPAREN", "Expected ')' after function parameters")
+            body = self.parse_block()
+            return {"type": "func", "name": name, "params": params, "body": body}
+
+        if self.match_keyword("return"):
+            value = self.parse_expression()
+            return {"type": "return", "value": value}
+
+        if self.match_keyword("start"):
+            return {"type": "start", "body": self.parse_block()}
+
+        if self.peek().type == "IDENT":
+            name = self.advance().value
+            if self.match("LPAREN"):
+                args = []
+                if self.peek().type != "RPAREN":
+                    while True:
+                        args.append(self.parse_expression())
+                        if not self.match("COMMA"):
+                            break
+                self.expect("RPAREN", "Expected ')' after function call")
+                return {"type": "call_stmt", "call": {"type": "call", "func": {"type": "variable", "name": name}, "args": args}}
+            if self.match("ASSIGN"):
+                value = self.parse_expression()
+                return {"type": "assign", "name": name, "value": value}
+            raise MKUSyntaxError(f"Unsupported statement starting with identifier '{name}'")
+
+        raise MKUSyntaxError(f"Unsupported statement near token {tok}")
+
+    def parse_expression(self) -> Dict[str, Any]:
+        return self.parse_logic_or()
+
+    def parse_logic_or(self) -> Dict[str, Any]:
+        node = self.parse_logic_and()
+        while self.match_keyword("or"):
+            right = self.parse_logic_and()
+            node = {"type": "binary", "op": "or", "left": node, "right": right}
+        return node
+
+    def parse_logic_and(self) -> Dict[str, Any]:
+        node = self.parse_equality()
+        while self.match_keyword("and"):
+            right = self.parse_equality()
+            node = {"type": "binary", "op": "and", "left": node, "right": right}
+        return node
+
+    def parse_equality(self) -> Dict[str, Any]:
+        node = self.parse_relational()
+        while self.peek().type == "OP" and self.peek().value in ("==", "!="):
+            op = self.advance().value
+            right = self.parse_relational()
+            node = {"type": "binary", "op": op, "left": node, "right": right}
+        return node
+
+    def parse_relational(self) -> Dict[str, Any]:
+        node = self.parse_additive()
+        while self.peek().type in ("LT", "GT") or (self.peek().type == "OP" and self.peek().value in ("<=", ">=")):
+            if self.peek().type == "LT":
+                op = self.advance().value
+            elif self.peek().type == "GT":
+                op = self.advance().value
+            else:
+                op = self.advance().value
+            right = self.parse_additive()
+            node = {"type": "binary", "op": op, "left": node, "right": right}
+        return node
+
+    def parse_additive(self) -> Dict[str, Any]:
+        node = self.parse_multiplicative()
+        while self.peek().type in ("PLUS", "MINUS"):
+            op = self.advance().type
+            right = self.parse_multiplicative()
+            node = {"type": "binary", "op": op, "left": node, "right": right}
+        return node
+
+    def parse_multiplicative(self) -> Dict[str, Any]:
+        node = self.parse_unary()
+        while self.peek().type in ("STAR", "SLASH", "PERCENT"):
+            op = self.advance().type
+            right = self.parse_unary()
+            node = {"type": "binary", "op": op, "left": node, "right": right}
+        return node
+
+    def parse_unary(self) -> Dict[str, Any]:
+        if self.match_keyword("not"):
+            return {"type": "unary", "op": "not", "value": self.parse_unary()}
+        if self.match("MINUS"):
+            return {"type": "unary", "op": "neg", "value": self.parse_unary()}
+        return self.parse_postfix()
+
+    def parse_postfix(self) -> Dict[str, Any]:
+        node = self.parse_primary()
+        while True:
+            if self.match("DOT"):
+                attr_name = self.expect("IDENT", "Expected property name after '.'").value
+                node = {"type": "attr", "obj": node, "attr": attr_name}
+            elif self.match("LPAREN"):
+                args = []
+                if self.peek().type != "RPAREN":
+                    while True:
+                        args.append(self.parse_expression())
+                        if not self.match("COMMA"):
+                            break
+                self.expect("RPAREN", "Expected ')' after function call")
+                node = {"type": "call", "func": node, "args": args}
+            elif self.match("LBRACKET"):
+                index = self.parse_expression()
+                self.expect("RBRACKET", "Expected ']' after index")
+                node = {"type": "index", "obj": node, "index": index}
+            else:
+                break
+        return node
+
+    def parse_primary(self) -> Dict[str, Any]:
+        tok = self.peek()
+
+        if tok.type == "NUMBER":
+            self.advance()
+            return {"type": "number", "value": tok.value}
+
+        if tok.type == "STRING":
+            self.advance()
+            return {"type": "string", "value": tok.value}
+
+        if tok.type == "IDENT":
+            self.advance()
+            if tok.value in {"true", "false"}:
+                return {"type": "boolean", "value": tok.value == "true"}
+            if tok.value == "null":
+                return {"type": "null", "value": None}
+            return {"type": "variable", "name": tok.value}
+
+        if self.match("LBRACKET"):
+            values = []
+            if self.peek().type != "RBRACKET":
+                while True:
+                    values.append(self.parse_expression())
+                    if not self.match("COMMA"):
+                        break
+            self.expect("RBRACKET", "Expected ']' after list literal")
+            return {"type": "list", "values": values}
+
+        if self.match("LPAREN"):
+            expr = self.parse_expression()
+            self.expect("RPAREN", "Expected ')' after expression")
+            return expr
+
+        raise MKUSyntaxError(f"Unexpected token in expression: {tok}")
+
+    def eval_expr(self, node: Dict[str, Any], env: Environment) -> Any:
+        kind = node["type"]
+
+        if kind == "number":
+            return node["value"]
+        if kind == "string":
+            return node["value"]
+        if kind == "boolean":
+            return node["value"]
+        if kind == "null":
+            return None
+        if kind == "list":
+            return [self.eval_expr(v, env) for v in node["values"]]
+        if kind == "variable":
+            return env.get(node["name"])
+
+        if kind == "attr":
+            obj = self.eval_expr(node["obj"], env)
+            if isinstance(obj, dict):
+                return obj.get(node["attr"])
+            return getattr(obj, node["attr"])
+
+        if kind == "index":
+            obj = self.eval_expr(node["obj"], env)
+            idx = self.eval_expr(node["index"], env)
+            return obj[idx]
+
+        if kind == "unary":
+            value = self.eval_expr(node["value"], env)
+            if node["op"] == "not":
+                return not value
+            if node["op"] == "neg":
+                return -value
+            raise MKUSyntaxError(f"Unsupported unary operator: {node['op']}")
+
+        if kind == "binary":
+            left = self.eval_expr(node["left"], env)
+            right = self.eval_expr(node["right"], env)
+            op = node["op"]
+
+            if op == "PLUS":
+                return left + right
+            if op == "MINUS":
+                return left - right
+            if op == "STAR":
+                return left * right
+            if op == "SLASH":
+                return left / right
+            if op == "PERCENT":
+                return left % right
+            if op == "==":
+                return left == right
+            if op == "!=":
+                return left != right
+            if op == "<":
+                return left < right
+            if op == ">":
+                return left > right
+            if op == "<=":
+                return left <= right
+            if op == ">=":
+                return left >= right
+            if op == "and":
+                return bool(left) and bool(right)
+            if op == "or":
+                return bool(left) or bool(right)
+            if op == "and":
+                return left and right
+            if op == "or":
+                return left or right
+
+            raise MKUSyntaxError(f"Unsupported binary operator: {op}")
+
+        if kind == "call":
+            callable_obj = self.eval_expr(node["func"], env)
+            args = [self.eval_expr(arg, env) for arg in node["args"]]
+            if isinstance(callable_obj, dict):
+                if "type" in callable_obj and callable_obj["type"] == "function":
+                    local = Environment(env)
+                    for param, arg in zip(callable_obj["params"], args):
+                        local.define(param, arg)
+                    self.return_flag = False
+                    self.return_value = None
+                    result = self.execute_block(callable_obj["body"], local)
+                    return result
+                raise TypeError(f"Function object not callable: {callable_obj}")
+            if callable(callable_obj):
+                return callable_obj(*args)
+            raise TypeError(f"Call to non-callable: {callable_obj}")
+
+        raise MKUSyntaxError(f"Unsupported expression node: {kind}")
+
+    def execute_block(self, statements: List[Dict[str, Any]], env: Environment) -> Any:
+        last_value = None
+        for stmt in statements:
+            last_value = self.execute_statement(stmt, env)
+            if self.return_flag:
+                break
+        return last_value
+
+    def execute_statement(self, stmt: Dict[str, Any], env: Environment) -> Any:
+        kind = stmt["type"]
+
+        if kind == "import":
+            module_name = stmt["module"]
+            alias = stmt["alias"]
+            value = self.resolve_module(module_name)
+            name = alias or module_name.split(".")[-1]
+            env.define(name, value)
+            return None
+
+        if kind == "start":
+            return self.execute_block(stmt["body"], env)
+
+        if kind == "var_decl":
+            env.define(stmt["name"], self.eval_expr(stmt["value"], env))
+            return None
+
+        if kind == "assign":
+            env.set(stmt["name"], self.eval_expr(stmt["value"], env))
+            return None
+
+        if kind == "print":
+            print(self.eval_expr(stmt["value"], env))
+            return None
+
+        if kind == "if":
+            condition = self.eval_expr(stmt["condition"], env)
+            if condition:
+                return self.execute_block(stmt["then_body"], env)
+            if stmt["else_body"] is not None:
+                return self.execute_block(stmt["else_body"], env)
+            return None
+
+        if kind == "while":
+            while self.eval_expr(stmt["condition"], env):
+                self.execute_block(stmt["body"], env)
+            return None
+
+        if kind == "for":
+            iterable = self.eval_expr(stmt["iterable"], env)
+            local = Environment(env)
+            for item in iterable:
+                local.define(stmt["name"], item)
+                self.execute_block(stmt["body"], local)
+            return None
+
+        if kind == "func":
+            env.define(stmt["name"], {"type": "function", "params": stmt["params"], "body": stmt["body"]})
+            return None
+
+        if kind == "return":
+            self.return_flag = True
+            self.return_value = self.eval_expr(stmt["value"], env)
+            return self.return_value
+
+        if kind == "call_stmt":
+            self.eval_expr(stmt["call"], env)
+            return None
+
+        raise MKUSyntaxError(f"Unsupported statement type: {kind}")
+
+    def resolve_module(self, module_name: str) -> Any:
+        module_map = {
+            "MarkOs": {
+                "banner": lambda text: f"[MarkOs] {text}",
+                "user": lambda: "Yüreğir",
+                "version": lambda: "MKU 1.0.0",
+                "build": lambda: "Özgür MKU Runtime",
+            },
+            "Systeam": {
+                "check": lambda: "online",
+                "status": lambda: "active",
+                "kernel": lambda: "Linux",
+            },
+            "Scanner": {
+                "all": {
+                    "scan": lambda host, port: {
+                        "host": host,
+                        "port": port,
+                        "status": "alive",
+                        "result": f"Port {port} on {host} is open"
+                    }
+                }
+            },
+            "Scanner.all": {
+                "scan": lambda host, port: {
+                    "host": host,
+                    "port": port,
+                    "status": "alive",
+                    "result": f"Port {port} on {host} is open"
+                }
+            },
+        }
+
+        if module_name in module_map:
+            return module_map[module_name]
+        raise ImportError(f"Module not found: {module_name}")
+
+    def run_source(self, source: str):
+        self.tokens = tokenize(source)
+        self.position = 0
+        self.return_flag = False
+        self.return_value = None
+        statements = self.parse_program()
+        self.execute_block(statements, self.global_env)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python mku_runtime.py <file.mku>")
+        sys.exit(1)
+
+    path = sys.argv[1]
+    with open(path, "r", encoding="utf-8") as f:
+        source = f.read()
+
+    runtime = MKUInterpreter()
+    try:
+        runtime.run_source(source)
+    except Exception as e:
+        print(f"[MKU Error] {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+

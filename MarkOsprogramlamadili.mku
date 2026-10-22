@@ -25,6 +25,14 @@ func selam(name) {
     return "Merhaba, " + name
 }
 
+func toplam(a, b) {
+    return a + b
+}
+
+func carp(a, b) {
+    return a * b
+}
+
 start {
     print("Selam Yüreğir! MarkOs MKU aktif.")
     print("Özgür ve bağımsız programlama dili çalışıyor.")
@@ -48,6 +56,12 @@ start {
     message = banner("MarkOs'un özgür dili çalışıyor.")
     print(message)
 
+    numbers = [10, 20, 30, 40]
+    print("Liste örneği:")
+    for item in numbers {
+        print(item)
+    }
+
     total = 0
     while total < 3 {
         print("Döngü: " + str(total))
@@ -60,6 +74,8 @@ start {
         print("Döngü tamamlanmadı.")
     }
 
+    print("Toplam: " + str(toplam(10, 25)))
+    print("Çarpım: " + str(carp(6, 7)))
     print(selam(user_name))
     print("MKU dili başarıyla çalıştı.")
 }
@@ -74,39 +90,28 @@ start {
 ; - start { ... }
 ; - if koşul { ... } else { ... }
 ; - while koşul { ... }
+; - for değişken in liste { ... }
 ; - print( ... )
 ; - return ...
 ; - + operatörü metin birleştirmede kullanılır
 ; - str(...) değeri metne çevirir
 ; =============================================================
 
-
 ; =============================================================
 ; Ek örnekler
 ; =============================================================
-
-func topla(a, b) {
-    return a + b
-}
-
-func carp(a, b) {
-    return a * b
-}
-
 func merhaba(isim) {
     return "Merhaba " + isim
 }
 
 start {
-    print("Toplam: " + str(topla(10, 25)))
-    print("Çarpım: " + str(carp(6, 7)))
     print(merhaba("Yüreğir"))
+    print("MKU özel modül sistemi hazır.")
 }
 
 ; =============================================================
-; Not:
+; Son not:
 ; Bu dosya, MKU dilinin özgür, bağımsız, okunabilir ve özel
-; tasarımının örnek kullanımını sunar. Dil geliştirildikçe burada
-; yeni modüller, sınıflar, veri yapıları ve derleyici desteği
-; artırılacaktır.
+; tasarımının örnek kullanımını sunar. Dil daha da geliştikçe
+; sınıflar, veri yapıları ve derleyici desteği eklenecektir.
 ; =============================================================
