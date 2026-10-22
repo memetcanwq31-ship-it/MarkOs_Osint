@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+MarkOs Derleyici (Markosderleyiciicc)
+===================================
+Makine derleyicisi prototipi. MKU kaynak kodunu Python'a çevirir.
+Amaç: "Özgür, bağımsız, özel ve makine benzeri derleyici" mantığı kurmak.
+
+Kullanım:
+    python3 Markosderleyiciicc input.mku output.py
+    veya
+    python3 Markosderleyiciicc input.mku
+
+Not:
+    Bu dosya gerçek üretim derleyicisi değil; ama derleyici mantığı,
+    tokenizer, parser ve kod üretimi mantığı içeren güçlü bir prototype'dir.
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+
+class MarkOsCompiler:
+    def __init__(self):
+        self.source = ""
+
+    def strip_comments(self, text: str) -> str:
+        lines = []
+        for raw in text.splitlines():
+            line = raw.split(";")[0].strip()
+            if line:
+                lines.append(line)
+        return "\n".join(lines)
+
+    def compile(self, source: str) -> str:
+        self.source = self.strip_comments(source)
+        if not self.source.strip():
+            return "# Boş kaynak kodu\n"
+
+        out = []
+        out.append("#!/usr/bin/env python3")
+        out.append("# Bu dosya MarkOs Derleyici tarafından üretilmiştir.")
+        out.append("# Derleyici: Markosderleyiciicc")
+        out.append("")
+
+        imports = []
+        functions = []
+        body_lines = []
+
+        lines = self.source.splitlines()
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+
+            if line.startswith("import "):
+                imports.append(line)
+                i += 1
+                continue
+
+            if line.startswith("func "):
+                func_name, params, func_body = self._parse_function(lines, i)
+                functions.append((func_name, params, func_body))
+                i = func_body["end_index"]
+                continue
+
+            if line.startswith("start {"):
+                main_body, new_index = self._parse_block(lines, i + 1, "}")
+                body_lines.extend(main_body)
+                i = new_index
+                continue
+
+            body_lines.append(line)
+            i += 1
+
+        # import satırlarını ekle
+        for imp in imports:
+            module = imp.replace("import ", "").strip()
+            if module.startswith("Scanner.all"):
+                out.append("class ScannerAll:")
+                out.append("    @staticmethod")
+                out.append("    def scan(host, port):")
+                out.append("        return {'host': host, 'port': port, 'status': 'alive', 'result': f'Port {port} on {host} is open'}")
+                out.append("")
+                out.append(f"door = ScannerAll()")
+                out.append("")
+                continue
+            if module == "MarkOs":
+                out.append("class MarkOs:")
+                out.append("    @staticmethod")
+                out.append("    def banner(text):")
+                out.append("        return f'[MarkOs] {text}'")
+                out.append("    @staticmethod")
+                out.append("    def user():")
+                out.append("        return 'Yüreğir'")
+                out.append("    @staticmethod")
+                out.append("    def version():")
+                out.append("        return 'MKU 1.0.0'")
+                out.append("")
+                continue
+            if module == "Systeam":
+                out.append("class Systeam:")
+                out.append("    @staticmethod")
+                out.append("    def check():")
+                out.append("        return 'online'")
+                out.append("")
+                continue
+            out.append(f"# import {module} -> not implemented in prototype")
+
+        # fonksiyonları üret
+        for fname, params, func_body in functions:
+            out.append(f"def {fname}({', '.join(params)}):")
+            for stmt in func_body["lines"]:
+                out.append("    " + self._convert_statement(stmt, is_function_body=True))
+            out.append("")
+
+        # ana program bloğu
+        out.append("def main():")
+        for stmt in body_lines:
+            out.append("    " + self._convert_statement(stmt, is_function_body=True))
+        out.append("")
+        out.append("if __name__ == '__main__':")
+        out.append("    main()")
+        out.append("")
+
+        return "\n".join(out)
+
+    def _parse_function(self, lines, index):
+        line = lines[index].strip()
+        m = re.match(r"func\s+(\w+)\s*\((.*)\)\s*\{\s*$", line)
+        if not m:
+            raise ValueError(f"Fonksiyon tanımı hatalı: {line}")
+
+        func_name = m.group(1)
+        params_raw = m.group(2).strip()
+        params = [p.strip() for p in params_raw.split(',') if p.strip()] if params_raw else []
+
+        body_lines = []
+        j = index + 1
+        depth = 1
+        while j < len(lines):
+            current = lines[j].strip()
+            if current.startswith("{"):
+                depth += 1
+            if current.endswith("}"):
+                if depth == 1:
+                    break
+                depth -= 1
+            if current == "}":
+                break
+            body_lines.append(current)
+            j += 1
+
+        if j >= len(lines):
+            raise ValueError(f"Fonksiyon '{func_name}' için kapatma süslü parantezi yok.")
+
+        return func_name, params, {"lines": body_lines, "end_index": j + 1}
+
+    def _parse_block(self, lines, index, end_token):
+        body = []
+        j = index
+        depth = 0
+        while j < len(lines):
+            current = lines[j].strip()
+            if current == end_token:
+                if depth == 0:
+                    return body, j + 1
+                depth -= 1
+            elif current.endswith("{") or current.startswith("{"):
+                depth += 1
+            body.append(current)
+            j += 1
+        raise ValueError(f"Blok kapanışı bulunamadı: {end_token}")
+
+    def _convert_statement(self, stmt: str, is_function_body: bool = False) -> str:
+        if stmt.startswith("print("):
+            inner = stmt[len("print("):-1].strip()
+            return f"print({self._convert_expression(inner)})"
+
+        if stmt.startswith("return "):
+            expr = stmt[6:].strip()
+            return f"return {self._convert_expression(expr)}"
+
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*\s*=\s*.*$", stmt):
+            left, right = stmt.split("=", 1)
+            return f"{left.strip()} = {self._convert_expression(right.strip())}"
+
+        if stmt.startswith("if "):
+            m = re.match(r"if\s+(.*)\s*\{", stmt)
+            if not m:
+                return stmt
+            cond = m.group(1).strip()
+            return f"if {self._convert_expression(cond)}:"
+
+        if stmt.startswith("else {"):
+            return "else:"
+
+        if stmt.startswith("while "):
+            m = re.match(r"while\s+(.*)\s*\{", stmt)
+            if not m:
+                return stmt
+            cond = m.group(1).strip()
+            return f"while {self._convert_expression(cond)}:"
+
+        if stmt.startswith("for "):
+            m = re.match(r"for\s+(\w+)\s+in\s+(.*)\s*\{", stmt)
+            if not m:
+                return stmt
+            name, iterable = m.groups()
+            return f"for {name} in {self._convert_expression(iterable)}:"
+
+        if stmt.startswith("if"):
+            return stmt
+
+        return stmt
+
+    def _convert_expression(self, expr: str) -> str:
+        expr = expr.strip()
+
+        # string literal
+        if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
+            return expr
+
+        # bool
+        if expr == "true":
+            return "True"
+        if expr == "false":
+            return "False"
+
+        # null
+        if expr == "null":
+            return "None"
+
+        # concatenation and arithmetic
+        if "+" in expr and not expr.startswith("str("):
+            parts = self._split_top_level(expr, "+")
+            if len(parts) > 1:
+                return " + ".join(self._convert_expression(p) for p in parts)
+
+        if "-" in expr:
+            parts = self._split_top_level(expr, "-")
+            if len(parts) > 1:
+                return " - ".join(self._convert_expression(p) for p in parts)
+
+        if "*" in expr:
+            parts = self._split_top_level(expr, "*")
+            if len(parts) > 1:
+                return " * ".join(self._convert_expression(p) for p in parts)
+
+        if "/" in expr:
+            parts = self._split_top_level(expr, "/")
+            if len(parts) > 1:
+                return " / ".join(self._convert_expression(p) for p in parts)
+
+        if expr.startswith("str(") and expr.endswith(")"):
+            inner = expr[4:-1]
+            return f"str({self._convert_expression(inner)})"
+
+        if expr.startswith("door.scan("):
+            inner = expr[len("door.scan("):-1]
+            return f"door.scan({self._convert_expression(inner)})"
+
+        if expr.startswith("MarkOs."):
+            return expr.replace("MarkOs.", "MarkOs.")
+
+        if expr.startswith("Systeam."):
+            return expr.replace("Systeam.", "Systeam.")
+
+        if expr.startswith("[") and expr.endswith("]"):
+            inner = expr[1:-1].strip()
+            if not inner:
+                return "[]"
+            return "[" + ", ".join(self._convert_expression(p.strip()) for p in inner.split(",")) + "]"
+
+        if expr.startswith("\"") or expr.startswith("'"):
+            return expr
+
+        if re.fullmatch(r"\d+", expr):
+            return expr
+
+        if re.fullmatch(r"\d+\.\d+", expr):
+            return expr
+
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", expr):
+            return expr
+
+        if expr.startswith("==") or expr.startswith("!=") or "==" in expr or "!=" in expr:
+            return expr
+
+        return expr
+
+    def _split_top_level(self, expr: str, op: str) -> list[str]:
+        parts = []
+        current = []
+        depth = 0
+        in_string = None
+        i = 0
+        while i < len(expr):
+            ch = expr[i]
+            if in_string is not None:
+                current.append(ch)
+                if ch == in_string:
+                    in_string = None
+                i += 1
+                continue
+            if ch in ('"', "'"):
+                in_string = ch
+                current.append(ch)
+                i += 1
+                continue
+            if ch in "([{" :
+                depth += 1
+                current.append(ch)
+                i += 1
+                continue
+            if ch in ")]}":
+                depth -= 1
+                current.append(ch)
+                i += 1
+                continue
+            if depth == 0 and expr.startswith(op, i):
+                parts.append("".join(current).strip())
+                current = []
+                i += len(op)
+                continue
+            current.append(ch)
+            i += 1
+        parts.append("".join(current).strip())
+        return [p for p in parts if p != ""]
+
+
+def main():
+    if len(sys.argv) not in (2, 3):
+        print("Kullanım: python3 Markosderleyiciicc <input.mku> [output.py]")
+        print("Örnek: python3 Markosderleyiciicc hello.mku out.py")
+        sys.exit(1)
+
+    src_path = Path(sys.argv[1])
+    if not src_path.exists():
+        print(f"Hata: Dosya bulunamadı: {src_path}")
+        sys.exit(1)
+
+    source = src_path.read_text(encoding="utf-8")
+    compiler = MarkOsCompiler()
+    compiled = compiler.compile(source)
+
+    if len(sys.argv) == 3:
+        out_path = Path(sys.argv[2])
+        out_path.write_text(compiled, encoding="utf-8")
+        print(f"Derleme tamamlandı: {out_path}")
+    else:
+        print(compiled)
+
+
+if __name__ == "__main__":
+    main()
