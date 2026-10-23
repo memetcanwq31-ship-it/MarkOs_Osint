@@ -1,0 +1,118 @@
+; =============================================================
+; MarkOs MKU - Özgür, Bağımsız ve Özel Programlama Dili
+; Dosya: programlamadili.mku
+; Amaç : Tüm bağımsız kütüphaneler, özel araçlar ve özgür dil API'leri
+; =============================================================
+
+; ------------------------- Kütüphane Bloğu -------------------------
+import MarkOs
+import Systeam
+import Security
+import Network
+import Filesystem
+import Crypto
+import Memory
+import Shell
+import Scanner.all as scanner
+import System.all as system
+import Math.all as math
+
+; ----------------------- Giriş / Ana Program -----------------------
+start {
+    print("===============================================")
+    print("   MarkOs MKU - Özgür ve Bağımsız Dil")
+    print("   Tüm kütüphaneler ve özel araçlar yüklü")
+    print("===============================================")
+
+    user = MarkOs.user()
+    version = MarkOs.version()
+    system_name = Systeam.kernel()
+    status = Systeam.check()
+
+    print("Kullanıcı: " + user)
+    print("Sürüm: " + version)
+    print("Sistem: " + system_name)
+    print("Durum: " + status)
+
+    ; --------------------- Güvenlik Araçları ---------------------
+    hash_value = Crypto.sha256("MarkOs MKU")
+    print("SHA256: " + hash_value)
+
+    pass_score = Security.score_password("MarkOs!2026")
+    print("Şifre Skoru: " + str(pass_score))
+
+    ; --------------------- Ağ Araçları ---------------------
+    ping_result = Network.ping("127.0.0.1")
+    print("Ping: " + str(ping_result))
+
+    tcp_scan = scanner.scan("127.0.0.1", 80)
+    print("Port Taraması: " + tcp_scan.result)
+
+    ; --------------------- Dosya / Sistem ---------------------
+    files = Filesystem.list_dir(".")
+    print("Klasör İçeriği: " + str(files))
+
+    file_hash = Filesystem.hash_file("programlamadili.mku")
+    print("Dosya HASH: " + file_hash)
+
+    ; --------------------- Bellek / Shell ---------------------
+    mem_info = Memory.info()
+    print("Bellek Bilgisi: " + str(mem_info))
+
+    shell_ok = Shell.execute("echo MarkOs MKU")
+    print("Shell Çıktısı: " + shell_ok)
+
+    ; --------------------- Matematik ---------------------
+    total = math.add(10, 25)
+    multiply = math.mul(6, 7)
+    print("Toplam: " + str(total))
+    print("Çarpım: " + str(multiply))
+
+    ; --------------------- Özel Fonksiyonlar ---------------------
+    welcome = MarkOs.banner("Özgür MKU dili çalışıyor.")
+    print(welcome)
+
+    result = Security.file_integrity("programlamadili.mku")
+    print("Dosya Bütünlüğü: " + result)
+
+    ; --------------------- Döngü ve Kontrol ---------------------
+    count = 0
+    while count < 3 {
+        print("Döngü: " + str(count))
+        count = count + 1
+    }
+
+    if status == "online" {
+        print("Sistem hazır. MKU özgür çalışma modunda.")
+    } else {
+        print("Sistem çevrimdışı; güvenli bekleme modu aktif.")
+    }
+
+    print("MKU dili başarıyla çalıştı.")
+}
+
+; =============================================================
+; Özgür Kütüphaneler / Modüller / Özellikler
+; =============================================================
+; - MarkOs             : kullanıcı, sürüm, banner, sistem bilgisi
+; - Systeam            : kernel, kontrol, status
+; - Security           : şifre skor, dosya bütünlüğü, analiz
+; - Network           : ping, socket, bağlantı testleri
+; - Filesystem         : list_dir, hash_file, read/write, metadata
+; - Crypto             : sha256, md5, key derivation, hash helpers
+; - Memory             : ram, process, heap, stack bilgisi
+; - Shell             : command execution, safe shell helpers
+; - Scanner.all        : ağ tarama, port scanning
+; - System.all         : iç sistem ve environment yönetimi
+; - Math.all           : add, mul, power, sqrt, factorial
+; =============================================================
+
+; ------------------- Ek Kütüphane Örnekleri -------------------
+func custom_scan(host, port) {
+    return scanner.scan(host, port)
+}
+
+start {
+    scan_result = custom_scan("127.0.0.1", 443)
+    print("Özel Tarama Sonucu: " + scan_result.result)
+}
